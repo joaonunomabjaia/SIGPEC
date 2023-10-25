@@ -5,6 +5,7 @@ import Funcionario from "./funcionario";
 import moment from "moment";
 import Aluno from "./aluno";
 import Pagamento from "./pagamento";
+import CategoriaInscricao from './categoriaInscricao';
 
 export default class Escola extends Model {
   // entity is a required property for all models.
@@ -20,22 +21,24 @@ export default class Escola extends Model {
       contactoAlternativo: this.string(""),
       endereco: this.string(""),
       nuit: this.string(""),
-      funcionarioRegisto: this.string(),
+      funcionarioRegisto: this.string(""),
       dataRegisto: this.attr(
         moment(new Date()).format("DD-MM-YYYY, h:mm:ss a")
       ),
-      funcionarioEdit: this.string(),
-      dataEdit: this.attr(),
+      funcionarioEdit: this.string(""),
+      dataEdit: this.attr(""),
       isActivo: this.attr(false),
       logotipo: this.attr(""),
       slogan: this.attr(""),
       contrato: this.attr(""),
       syncStatus: this.attr("R"), // R=Ready to sync, U=updated (must be sync again), S=sent (no need to sync)
+
       // Relationship
       inscricaos: this.hasMany(Inscricao, "escolaId"),
       funcionarios: this.hasMany(Funcionario, "escolaId"),
       alunos: this.hasMany(Aluno, "escolaId"),
       pagamentos: this.hasMany(Pagamento, "escolaId"),
+      categoriaInscricaos: this.hasMany(CategoriaInscricao, "escolaId"),
       // TAmbem te varios users, mas irei ver como tratar no supabase
     };
   }

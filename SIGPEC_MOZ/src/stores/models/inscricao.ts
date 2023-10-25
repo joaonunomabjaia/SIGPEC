@@ -21,13 +21,13 @@ export default class Inscricao extends Model {
       dataRegisto: this.attr(
         moment(new Date()).format("DD-MM-YYYY, h:mm:ss a")
       ),
-      funcionarioEdit: this.string(),
-      dataEdit: this.attr(),
+      funcionarioEdit: this.string(""),
+      dataEdit: this.attr(""),
       syncStatus: this.attr("R"), // R=Ready to sync, U=updated (must be sync again), S=sent (no need to sync)
       notas: this.attr("Inicio"), // Anything else Ex: Inicio, Reinicio, etc.
 
       // Chaves
-      funcionarioRegisto: this.string(),
+      funcionarioRegisto: this.string(""),
       categoriaInscricaoId: this.attr(null),
       escolaId: this.attr(null),
       alunoId: this.attr(null),

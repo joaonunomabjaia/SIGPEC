@@ -285,11 +285,12 @@
 <script setup>
 import TextInput from 'src/components/shared/input/TextField.vue'
 import moment from 'moment'
-import { inject, computed, ref } from 'vue'
+import { inject, computed, ref, watch } from 'vue'
 
-const validacaoInputsAlunoErrors = ref(false)
 const aluno = inject('alunoInstance')
-const goToNextStep = inject('goToNextStep')
+// const goToNextStep = inject('goToNextStep')
+const step1Validated = inject('step1Validated')
+const goingNextControlFlag = inject('goingNextControlFlag')
 
 // Refs do form
 const nome = ref('')
@@ -334,7 +335,7 @@ const apelidoRules = [(val) => !!val || 'Por favor indicar o apelido']
 
 const dataNascimentoRules = [(val) => !!val || 'Por favor indicar a data de nascimento']
 
-const idadeRules = [(val) => parseInt(val) >= 18 || 'Menor de Idade']
+// const idadeRules = [(val) => parseInt(val) >= 18 || 'Menor de Idade']
 
 const sexoRules = [(val) => !!val || 'Por favor indicar o sexo']
 
@@ -372,14 +373,18 @@ const validacao = () => {
     !dataEmissao.value.hasError &&
     !dataValidade.value.hasError
   ) {
-    goToNextStep()
-    return true
+    if (idade.value && idade.value < 18) {
+      alert("Este(a) aluno(a) inda e' menor de idade")
+    } else {
+      step1Validated.value = true
+    }
   } else {
-    if (idade.value < 18) alert("Este(a) aluno(a) inda e' menor de idade")
-    console.log('Campos inválidos!')
-    return false
+    if (idade.value && idade.value < 18) alert("Este(a) aluno(a) inda e' menor de idade")
   }
 }
 
-defineExpose({ validacaoInputsAlunoErrors, validacao })
+watch(goingNextControlFlag, async () => {
+  await validacao()
+})
+
 </script>

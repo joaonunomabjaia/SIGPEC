@@ -220,19 +220,4 @@ const discontoEmDia = computed(() => { // Verificar se o disconto geral ainda es
 }
 )
 
-const docExpiradoComp = computed(() => { // Verificar se o documento expirou ou nao
-  let result = false
-  if (aluno.dataEmissaoDoc !== undefined && aluno.validadeDoc !== undefined) {
-    const a = moment(aluno.validadeDoc, 'DD-MM-YYYY')
-    const c = a.diff(moment(), 'days')
-    if (c < 0) result = true
-  }
-  return result
-}
-)
-
-// hooks
-onMounted(() => {
-  // pppp
-})
 </script>

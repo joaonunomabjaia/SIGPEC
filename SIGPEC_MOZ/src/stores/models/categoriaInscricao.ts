@@ -25,6 +25,8 @@ export default class CategoriaInscricao extends Model {
       dataEdit: this.attr(null),
       isActivo: this.attr(true),
       syncStatus: this.attr("R"), // R=Ready to sync, U=updated (must be sync again), S=sent (no need to sync)
+
+      escolaId: this.attr(null),
       // Relationship
       inscricaos: this.hasMany(Inscricao, "categoriaInscricaoId"),
     };

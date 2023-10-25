@@ -10,20 +10,22 @@ export default class Pagamento extends Model {
     return {
       // Attributes
       id: this.uid(),
-      escolaId: this.attr(null),
       valorPago: this.attr(0),
-      inscricaoId: this.attr(null),
-      tipoPagamentoId: this.attr(),
       referenteA: this.attr(null),
-      funcionarioRegisto: this.string(null),
       dataRegisto: this.attr(
         moment(new Date()).format("DD-MM-YYYY, h:mm:ss a")
       ),
-      funcionarioEdit: this.string(),
+      funcionarioEdit: this.string(""),
       notas: this.attr(""),
-      dataEdit: this.attr(),
+      dataEdit: this.attr(""),
       isValido: this.attr(true),
       syncStatus: this.attr("R"), // R=Ready to sync, U=updated (must be sync again), S=sent (no need to sync)
+
+      
+      escolaId: this.attr(null),
+      inscricaoId: this.attr(null),
+      tipoPagamentoId: this.attr(""),
+      funcionarioRegisto: this.string(null),
     };
   }
 }
