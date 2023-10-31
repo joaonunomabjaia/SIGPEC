@@ -10,7 +10,7 @@ export default class Inscricao extends Model {
     return {
       // Attributes
       id: this.uid(),
-      resumoPromo: this.string(""), // Vai resumir toda informacao de promocao caso haja na tal categoria
+      resumoPromo: this.string("A Categoria nao estava em promacao"), // Vai resumir toda informacao de promocao caso haja na tal categoria
       valorPagarPosDisconto: this.attr(0),
       valorDisconto: this.attr(0), // Caso haja desconto individual
       discontoGeral: this.attr(0), // disconto por categoria

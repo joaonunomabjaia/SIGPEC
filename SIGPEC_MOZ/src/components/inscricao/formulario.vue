@@ -351,7 +351,9 @@
                           option-value="id"
                           option-label="descricao"
                           :options="categorias"
-                          label="Categoria *" />
+                          label="Categoria *"
+                          lazy-rules
+                          />
                       <q-input
                         outlined
                         ref="valorDefaultDaCategoriaRef"
@@ -377,14 +379,19 @@
                       <q-input
                         outlined
                         ref="descontoIndividualRef"
-                        type="text"
+                        type="number"
                         lazy-rules
                         label="Desconto Individual"
                         dense class="col q-ml-md"
                         v-model="inscricao.valorDisconto"
                       />
                     </div>
-                    <div class="row" style="height: 220px">
+                    <div class="row items-center q-mb-md">
+                        <q-icon name="photo" size="sm"/>
+                        <span class="q-pl-sm text-subtitle2">Fotografia</span>
+                    </div>
+                    <q-separator color="grey-13" size="1px"/>
+                    <div class="row q-mt-md" style="height: 220px">
                       <div class="col self-center" >
                         <div class="column">
                           <q-btn dense color="primary" @click="toggleCamera" >
@@ -439,7 +446,7 @@
                     <q-separator color="grey-13" size="1px"/>
                     <div class="row q-mt-md">
                       <q-input outlined dense v-model="pagarPosDisconto" label="Total a pagar pos desconto" class="col " readonly />
-                      <q-input outlined label="Valor a pagar (agora)" dense class="col q-ml-md" ref="enderecoRef" v-model="pagamento.valorPago"/>
+                      <q-input outlined label="Valor a pagar (agora)" dense class="col q-ml-md" type="number" ref="enderecoRef" lazy-rules v-model="pagamento.valorPago"/>
                       <q-input outlined dense v-model="valorEmDivida" label="Divida" class="col q-ml-md" label-color="negative" color="pink-6" readonly />
                     </div>
                   </div>
@@ -482,26 +489,33 @@
 // import axios from 'axios'
 import { ref, reactive, inject, computed, onMounted } from 'vue'
 import moment from 'moment'
-import { useRepo } from 'pinia-orm'
+import AlunoService from 'src/services/alunoService'
+import InscricoService from 'src/services/inscricaoService'
+import PagamentoService from 'src/services/pagamentoService'
+import EscolaService from 'src/services/escolaService.ts'
+import TipoPagamentoService from 'src/services/tipoPagamentoService.ts'
+import CategoriInscricaoService from 'src/services/categoriaInscricaoService.ts'
 import Inscricao from 'src/stores/models/inscricao'
 import Pagamento from 'src/stores/models/pagamento'
 import CategoriaInscricao from 'src/stores/models/categoriaInscricao'
 import Aluno from 'src/stores/models/aluno'
 import useSharedMethods from 'src/composables/UseSharedMethods'
 import useSwal from 'src/composables/dialog'
+import ficha from 'src/services/printable/fichaDoAluno/ficha'
 
 const step = ref(1)
-const enableCamera = ref(false)
-const { alertSucess, alertError, alertInfo, alertWarningAction } = useSwal()
+const { alertError, alertInfo, alertWarningAction } = useSwal()
 const { calculateAge, diffDatesInDays } = useSharedMethods()
+const school = EscolaService.newInstanceEntity()
 
-const aluno = reactive(new Aluno())
-const inscricao = reactive(new Inscricao())
-const pagamento = reactive(new Pagamento())
+const aluno = reactive(AlunoService.newInstanceEntity())
+const inscricao = reactive(InscricoService.newInstanceEntity())
+const pagamento = reactive(PagamentoService.newInstanceEntity())
 const stepper = ref()
 const step1Validated = ref(false)
 const step2Validated = ref(false)
 const switchListRegisterMode = inject('switchListRegisterMode')
+const photoTaken = ref(false)
 
 // Refs do form
 const nome = ref('')
@@ -587,7 +601,78 @@ const validacaoStep1 = async () => {
   }
 }
 
-const validacaoStep2 = async () => {}
+const validacaoStep2 = async () => {
+  if (parseInt(pagamento.valorPago) > 0 && parseInt(pagamento.valorPago) <= pagarPosDisconto.value) { // Pode avancar
+    prepareAndSave(!parseInt(pagamento.valorPago) > 0 && parseInt(pagamento.valorPago) <= pagarPosDisconto.value)
+  } else {
+    let msg = 'Inconsistencia de valores.'
+    if (parseInt(pagamento.valorPago) === 0) msg = 'Não foi informado nenhum valor a pagar. Deseja prosseguir mesmo assim?\nAtenção: O sistema irá registar esta acção.'
+    if (parseInt(pagamento.valorPago) > pagarPosDisconto.value) msg = 'Está cobrar ao aluno mais do que devia. Deseja prosseguir mesmo assim?\nAtenção: O sistema irá registar esta acção.'
+
+    alertWarningAction(msg).then(answer => {
+      if (answer) {
+        prepareAndSave(!parseInt(pagamento.valorPago) > 0 && parseInt(pagamento.valorPago) <= pagarPosDisconto.value)
+      }
+    })
+  }
+  ficha.downloadPDF(school, inscricao, aluno, pagamento)
+}
+
+const prepareAndSave = (haInconsistencias) => {
+  photoTaken.value = true
+  if (photoTaken.value) {
+    aluno.escolaId = school.id
+    // inscricao
+    inscricao.alunoId = aluno.id
+    inscricao.escolaId = school.id
+    inscricao.categoriaInscricaoId = selectedCategoria.value.id
+    if (selectedCategoria.value.emPromo) {
+      inscricao.resumoPromo = 'A Categoria estava numa promoção, de ' + selectedCategoria.value.valorPromo + 'MT, que tinha valida de ' + selectedCategoria.value.inicioPromo + ' até ' + selectedCategoria.value.fimPromo
+    }
+    // pagamento
+    if (!haInconsistencias) {
+      pagamento.notas = 'Inicio com inconsistencia de valores.'
+    } else {
+      pagamento.notas = 'Inicio sem inconsistencia de valores.'
+    }
+    pagamento.escolaId = school.id
+    pagamento.inscricaoId = inscricao.id
+    pagamento.tipoPagamentoId = TipoPagamentoService.getDefault().id
+
+    AlunoService.post(aluno)
+    InscricoService.post(inscricao)
+    PagamentoService.post(pagamento)
+  } else {
+    alertWarningAction('Foto não capturada, Deseja prosseguir mesmo assim?').then(answer => {
+      if (answer) {
+        photoTaken.value = true
+        if (photoTaken.value) {
+          aluno.escolaId = school.id
+          // inscricao
+          inscricao.alunoId = aluno.id
+          inscricao.escolaId = school.id
+          inscricao.categoriaInscricaoId = selectedCategoria.value.id
+          if (selectedCategoria.value.emPromo) {
+            inscricao.resumoPromo = 'A Categoria estava numa promoção, de ' + selectedCategoria.value.valorPromo + 'MT, que tinha valida de ' + selectedCategoria.value.inicioPromo + ' até ' + selectedCategoria.value.fimPromo
+          }
+          // pagamento
+          if (haInconsistencias) {
+            pagamento.notas = 'Inicio com inconsistencia de valores.'
+          } else {
+            pagamento.notas = 'Inicio sem inconsistencia de valores.'
+          }
+          pagamento.escolaId = school.id
+          pagamento.inscricaoId = inscricao.id
+          pagamento.tipoPagamentoId = TipoPagamentoService.getDefault().id
+
+          AlunoService.post(aluno)
+          InscricoService.post(inscricao)
+          PagamentoService.post(pagamento)
+        }
+      }
+    })
+  }
+}
 
 const docExpiradoComp = computed(() => { // Verificar se o documento expirou ou nao
   if (diffDatesInDays(aluno.validadeDoc, moment()) != null && diffDatesInDays(aluno.validadeDoc, moment()) <= 0) {
@@ -644,11 +729,8 @@ const goToNextStep = async () => {
       }
     }
   } else if (step.value === 2) {
+    step.value++
     await validacaoStep2()
-    if (step1Validated.value && step2Validated.value) {
-      step.value++
-      submeter()
-    }
   }
 }
 
@@ -673,29 +755,6 @@ const pagarPosDisconto = computed(() => {
 const valorEmDivida = computed(() => {
   return pagarPosDisconto.value - pagamento.valorPago
 })
-
-const submeter = async () => {
-  const discontoGeral = ref(0)
-  const inscricoes = ref([])
-  const pagamentos = ref([])
-  if (discontoEmDia.value) { discontoGeral.value = selectedCategoria.value.valorPromo }
-  inscricao.discontoGeral = discontoGeral.value
-  inscricao.valorPagarPosDisconto = pagarPosDisconto
-  inscricao.alunoId = aluno.id
-  aluno.docExpirado = docExpiradoComp
-
-  pagamento.referentA = 'Prestacao: ' + selectedCategoria.value.descricao
-  pagamentos.value.push(pagamento.value) // A lista de pagamentos ja devera estar preenchida com pagamentos anteriores antes deste passo
-  inscricao.pagamentos = pagamentos.value
-  inscricoes.value.push(inscricao) // A lista de inscricoes ja devera estar preenchida com inscricoes anteriores antes deste passo
-  aluno.inscricaos = inscricoes.value
-  // Saving
-  //   await useRepo(alunoRepository).save(aluno)
-  // After Saving On PiniaStore, save on localStore
-  await localStorage.setItem('aluno', JSON.stringify(aluno.value))
-  // Now save on sessonStorage
-  await sessionStorage.setItem('selectedAluno', JSON.stringify(aluno.value))
-}
 
 // Camera Attributes
 const cameraRef = ref(null)
@@ -724,6 +783,8 @@ function takePhoto () {
   // Converte o canvas para um blob
   canvas1.toBlob(function (blob) {
     if (blob) {
+      // Limpa a URL temporária
+      URL.revokeObjectURL(url)
       const date = moment()
       const filename = `foto_${date.toISOString()}.png`
       const url = URL.createObjectURL(blob)
@@ -736,9 +797,6 @@ function takePhoto () {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-
-      // Limpa a URL temporária
-      URL.revokeObjectURL(url)
     }
   }, 'image/png')
 }
@@ -768,10 +826,29 @@ function stopCameraStream () {
 // Inscricao e Pgamento FIM
 
 onMounted(() => {
-  if (navigator.mediaDevices.getUserMedia) {
-    enableCamera.value = true
-  }
-  const cat1 = new CategoriaInscricao()
+  school.nome = 'Escola de Conducao Ethan'
+  console.log(school)
+  EscolaService.post(school)
+
+  const tipoPag1 = TipoPagamentoService.newInstanceEntity()
+  tipoPag1.escolaId = school.id
+
+  const tipoPag2 = TipoPagamentoService.newInstanceEntity()
+  tipoPag2.escolaId = school.id
+  tipoPag2.descricao = 'Recibo 118'
+  tipoPag2.valorPorPagar = 118
+
+  const tipoPag3 = TipoPagamentoService.newInstanceEntity()
+  tipoPag3.escolaId = school.id
+  tipoPag3.descricao = 'Teste Multimedia'
+  tipoPag3.valorPorPagar = 50
+
+  TipoPagamentoService.post(tipoPag1)
+  TipoPagamentoService.post(tipoPag2)
+  TipoPagamentoService.post(tipoPag3)
+
+  const cat1 = CategoriInscricaoService.newInstanceEntity()
+  cat1.escolaId = school.id
   cat1.descricao = 'Ligeiros e Pesados'
   cat1.valorDefeito = 8900
   cat1.valorPromo = 1000
@@ -779,41 +856,35 @@ onMounted(() => {
   cat1.inicioPromo = moment().format('DD-MM-YYYY')
   cat1.fimPromo = moment().format('DD-MM-YYYY')
 
-  const cat2 = new CategoriaInscricao()
+  CategoriInscricaoService.post(cat1)
+
+  const cat2 = CategoriInscricaoService.newInstanceEntity()
+  cat2.escolaId = school.id
   cat2.descricao = 'Ligeiros'
   cat2.valorDefeito = 6900
   cat2.valorPromo = 0
   cat2.emPromo = false
 
-  const cat3 = new CategoriaInscricao()
+  CategoriInscricaoService.post(cat2)
+
+  const cat3 = CategoriInscricaoService.newInstanceEntity()
+  cat3.escolaId = school.id
   cat3.descricao = 'Profissional'
   cat3.valorDefeito = 5000
   cat3.valorPromo = 0
   cat3.emPromo = false
 
-  console.log(categorias.value)
+  CategoriInscricaoService.post(cat3)
+
   categorias.value.push(cat1)
   categorias.value.push(cat2)
   categorias.value.push(cat3)
   selectedCategoria.value = categorias.value[0]
+
+  console.log(EscolaService.getAll())
+  console.log(CategoriInscricaoService.getAll())
+  categorias.value = CategoriInscricaoService.getAll()
 })
-
-const videoplayRef = ref(null)
-const useCam = () => {
-  const constraints = (window.constraints = {
-    audio: false,
-    video: true
-  })
-
-  navigator.mediaDevices
-    .getUserMedia(constraints)
-    .then(stream => {
-      cameraRef.value.srcObject = stream
-    })
-    .catch(error => {
-      alertInfo(error, "May the browser didn't support or there is some errors.")
-    })
-}
 
 </script>
 

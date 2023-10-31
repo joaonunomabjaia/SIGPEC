@@ -6,6 +6,7 @@ import moment from "moment";
 import Aluno from "./aluno";
 import Pagamento from "./pagamento";
 import CategoriaInscricao from './categoriaInscricao';
+import TipoPagamento from './TipoPagamento';
 
 export default class Escola extends Model {
   // entity is a required property for all models.
@@ -39,7 +40,8 @@ export default class Escola extends Model {
       alunos: this.hasMany(Aluno, "escolaId"),
       pagamentos: this.hasMany(Pagamento, "escolaId"),
       categoriaInscricaos: this.hasMany(CategoriaInscricao, "escolaId"),
-      // TAmbem te varios users, mas irei ver como tratar no supabase
+      tipoPagamentos: this.hasMany(TipoPagamento, "escolaId"),
+      // TAmbem tem varios users, mas irei ver como tratar no supabase
     };
   }
 }
